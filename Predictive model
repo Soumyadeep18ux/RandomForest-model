@@ -1,0 +1,137 @@
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
+from sklearn.metrics import accuracy_score,confusion_matrix, precision_score, recall_score, f1_score
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer, SimpleImputer
+
+df=pd.read_csv('/content/X_Train_Data_Input.csv')
+
+df.isnull().sum()
+
+numerical_columns = df.select_dtypes(include=['float64', 'int64']).columns
+
+categorical_columns = df.select_dtypes(include=['object', 'category', 'int64']).columns
+
+binary_columns = [col for col in categorical_columns if df[col].nunique() <= 2 and df[col].dropna().isin([0, 1]).all()]
+
+mice_imputer = IterativeImputer(max_iter=10, random_state=0)
+
+df[numerical_columns] = mice_imputer.fit_transform(df[numerical_columns])
+
+simple_imputer = SimpleImputer(strategy='most_frequent')
+
+df[binary_columns] = simple_imputer.fit_transform(df[binary_columns])
+
+df.isnull().sum()
+
+df2=pd.read_csv('/content/Y_Train_Data_Target.csv')
+
+df2.isnull().sum()
+
+df3=pd.read_csv('/content/X_Test_Data_Input.csv')
+
+df3.isnull().sum()
+
+numerical_columns = df3.select_dtypes(include=['float64', 'int64']).columns
+
+categorical_columns = df3.select_dtypes(include=['object', 'category', 'int64']).columns
+
+binary_columns = [col for col in categorical_columns if df3[col].nunique() <= 2 and df3[col].dropna().isin([0, 1]).all()]
+
+mice_imputer = IterativeImputer(max_iter=10, random_state=0)
+
+df3[numerical_columns] = mice_imputer.fit_transform(df3[numerical_columns])
+
+simple_imputer = SimpleImputer(strategy='most_frequent')
+
+df3[binary_columns] = simple_imputer.fit_transform(df3[binary_columns])
+
+df3.isnull().sum()
+
+df4=pd.read_csv('/content/Y_Test_Data_Target.csv')
+
+X_train=df.drop(columns=['ID'],axis=1)
+Y_train=df2.drop(columns=['ID'],axis=1)
+X_test=df3.drop(columns=['ID'],axis=1)
+Y_test=df4.drop(columns=['ID'],axis=1)
+
+Y_train=Y_train.values.ravel()
+Y_test=Y_test.values.ravel()
+
+**RANDOM FOREST**
+
+from sklearn.ensemble import RandomForestClassifier
+
+from math import *
+
+from sklearn.model_selection import RandomizedSearchCV
+
+param_dist = {
+    'n_estimators': [100, 200, 300],
+    'max_depth': [10, 20, 30, None],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4],
+    'max_features': ['auto', 'sqrt', 'log2'],
+    'bootstrap': [True, False]
+}
+
+
+rf = RandomForestClassifier()
+random_search = RandomizedSearchCV(estimator=rf, param_distributions=param_dist, n_iter=100, cv=3, n_jobs=-1, verbose=2, random_state=42)
+random_search.fit(X_train, Y_train)
+
+
+print(random_search.best_params_)
+
+
+#rf=RandomForestClassifier(n_estimators=100,max_depth=None,min_samples_split=3,min_samples_leaf=1,bootstrap=True,max_features='log2')
+
+#rf.fit(X_train,Y_train)
+
+X_train_prediction=rf.predict(X_train)
+training_data_accuracy=accuracy_score(X_train_prediction,Y_train)
+
+training_data_accuracy
+
+X_test_prediction=rf.predict(X_test)
+test_data_accuracy=accuracy_score(X_test_prediction,Y_test)
+
+test_data_accuracy
+
+precision=precision_score(Y_test,X_test_prediction)
+precision
+
+recall=recall_score(Y_test,X_test_prediction)
+recall
+
+f1=f1_score(Y_test,X_test_prediction)
+f1
+
+cm=confusion_matrix(Y_test,X_test_prediction)
+cm
+
+from sklearn.metrics import roc_auc_score, roc_curve
+import matplotlib.pyplot as plt
+
+# Get the probabilities for the positive class
+y_pred_proba = opt.predict_proba(X_test)[:, 1]
+
+auc_score = roc_auc_score(Y_test, y_pred_proba)
+print(f"AUC Score: {auc_score}")
+
+# Compute ROC curve
+fpr, tpr, thresholds = roc_curve(Y_test, y_pred_proba)
+
+# Plot the ROC curve
+plt.figure()
+plt.plot(fpr, tpr, color='blue', label=f"ROC curve (area = {auc_score:.2f})")
+plt.plot([0, 1], [0, 1], color='grey', linestyle='--')  # Diagonal line for random guessing
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic')
+plt.legend(loc="lower right")
+plt.show()
